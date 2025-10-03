@@ -104,11 +104,9 @@ All trained models are saved as `.pkl` files inside the `Files/` directory.
 ---
 ⚡ Future Work
 
-Experimenting with Deep Learning models (RNNs, LSTMs) for time-based crime prediction.
-
-Adding an alert system for real-time crime hot-spot detection.
-
-Hyperparameter tuning with Optuna for more robust optimization.
+- Experimenting with Deep Learning models (RNNs, LSTMs) for time-based crime prediction.
+- Adding an alert system for real-time crime hot-spot detection.
+- Hyperparameter tuning with Optuna for more robust optimization.
 
 ---
 
