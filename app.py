@@ -143,7 +143,6 @@ def load_data(sample_size=50000):
     df = pd.read_csv(
         "Sample_200k.csv",
         parse_dates=["DATE OCC"],
-        engine="openpyxl"
     )
 
     if sample_size and len(df) > sample_size:
