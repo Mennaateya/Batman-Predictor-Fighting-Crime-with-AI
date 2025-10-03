@@ -8,7 +8,122 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="LA Crime Explorer", layout="wide", initial_sidebar_state="auto")
+# ---------------------------------
+# Batman Theme (Dark Gotham Style)
+# ---------------------------------
+st.set_page_config(
+    page_title="🦇 Batman Crime Predictor",
+    layout="wide",
+    initial_sidebar_state="auto"
+)
+
+st.markdown(
+    """
+    <style>
+    :root{
+      --bat-yellow: #f1c40f;
+      --bg-dark: #0d0d0d;
+      --panel-dark: #1a1a1a;
+      --text-light: #f5f5f5;
+      --bat-orange-dark: #e67e22;
+      --bat-orange-light: #f39c12;
+    }
+
+    /* App background & text */
+    html, body, .stApp {
+      background-color: var(--bg-dark) !important;
+      color: var(--text-light) !important;
+    }
+
+    /* Headings */
+    h1, h2, h3, h4,
+    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4,
+    .css-1v3fvcr h1, .css-10trblm h1 {
+      color: var(--bat-yellow) !important;
+      text-shadow: 0 0 6px rgba(241,196,15,0.12);
+    }
+
+    /* Sidebar */
+    section[data-testid="stSidebar"] {
+      background-color: var(--panel-dark) !important;
+      color: var(--bat-yellow) !important;
+    }
+    section[data-testid="stSidebar"] * {
+      color: var(--bat-yellow) !important;
+    }
+
+    /* Buttons */
+    div.stButton > button, button[kind="secondary"], button {
+      background-color: var(--bat-yellow) !important;
+      color: #000000 !important;
+      border: 1px solid #000000 !important;
+      font-weight: 600 !important;
+      box-shadow: 0 2px 0 rgba(0,0,0,0.6) !important;
+    }
+    .stButton>button:hover {
+      background-color: #d4ac0d !important;
+      color: #000 !important;
+    }
+
+    /* DataFrames */
+    .stDataFrame, .dataframe, .element-container {
+      background-color: transparent !important;
+      color: var(--text-light) !important;
+    }
+
+    /* Metric values */
+    [data-testid="stMetricValue"] {
+      color: var(--bat-yellow) !important;
+    }
+
+    /* Cards / Panels */
+    .css-1d391kg, .css-1vsu8ta, .css-11h0k4r, .css-18e3th9 {
+      background-color: var(--panel-dark) !important;
+      color: var(--text-light) !important;
+    }
+
+    /* Plotly bg fix */
+    .js-plotly-plot .plotly, .plot-container {
+      background-color: transparent !important;
+    }
+
+    /* Links */
+    a, a:link, a:visited {
+      color: var(--bat-yellow) !important;
+    }
+
+    /* Progress bars */
+    .prob-bar {
+    height: 22px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    background-color: #333;
+    overflow: hidden;
+    }
+
+    .prob-fill-violent {
+    background: linear-gradient(90deg, #e65100, #ff6f00); /* برتقالي غامق → أفتح */
+    height: 100%;
+    text-align: right;
+    padding-right: 8px;
+    color: #fff;
+    font-weight: bold;
+    }
+
+    .prob-fill-nonviolent {
+    background: linear-gradient(90deg, #ff9800, #ffcc80); /* برتقالي أفتح */
+    height: 100%;
+    text-align: right;
+    padding-right: 8px;
+    color: #000;
+    font-weight: bold;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 
 # ----------------------------
 # Helpers: load artifacts safely
@@ -23,19 +138,21 @@ def load_pickle(fname):
     with open(path, "rb") as f:
         return pickle.load(f)
 
-# -------------------- CACHE DATA --------------------
 @st.cache_data
 def load_data(sample_size=50000):
-    df = pd.read_csv(
-        "Crime_Data_from_2020_to_Present.csv",
+    df = pd.read_excel(
+        "Sample.xlsx",
         parse_dates=["DATE OCC"],
-        low_memory=False
+        engine="openpyxl"
     )
+
     if sample_size and len(df) > sample_size:
         df = df.sample(n=sample_size, random_state=42)
     return df
 
-# Try load commonly used artifacts (may be None if missing)
+# --------------------
+# Load artifacts
+# --------------------
 le_crm_cd_desc = load_pickle("Crm Cd Desc_label_encoder.pkl")
 le_vict_descent = load_pickle("Vict Descent_label_encoder.pkl")
 le_weapon_desc = load_pickle("Weapon Desc_label_encoder.pkl")
@@ -47,7 +164,7 @@ std_scaler = load_pickle("StandardScaler.pkl")
 std2_scaler = load_pickle("StandardScaler2.pkl")
 robust_scaler = load_pickle("RobustScaler.pkl")
 
-# load models (exclude encoders/scalers)
+# load models
 available_models = {}
 if FILES_DIR.exists():
     for p in FILES_DIR.glob("*.pkl"):
@@ -120,10 +237,11 @@ def encode_and_transform(input_df: pd.DataFrame):
     return df[MODEL_FEATURES]
 
 # ----------------------------
-# UI: Sidebar navigation
+# Sidebar navigation
 # ----------------------------
-st.sidebar.title("LA Crime Explorer")
+st.sidebar.title("Gotham Navigator")
 page = st.sidebar.selectbox("Navigate", ["Home", "Predict", "Visualizations", "Model Comparison", "About"])
+
 
 # ----------------------------
 # HOME
@@ -138,8 +256,8 @@ if page == "Home":
     with col1:
         st.markdown("**Load sample data**")
         if st.button("Load sample (5k rows)"):
-            if Path("Crime_Data_from_2020_to_Present.csv").exists():
-                df_sample = pd.read_csv("Crime_Data_from_2020_to_Present.csv", nrows=5000)
+            if Path("Sample.xlsx").exists():
+                df_sample = pd.read_excel("Sample.xlsx", nrows=5000)
                 st.dataframe(df_sample.head())
             else:
                 st.warning("Dataset CSV not found in project folder.")
@@ -213,29 +331,47 @@ elif page == "Predict":
             "Vict Sex": vict_sex,
             "Status Desc": status_desc
         }])
-
+    
         # apply encoding + transforms
         try:
             X_sample = encode_and_transform(sample)
         except Exception as e:
             st.error(f"Preprocessing failed: {e}")
             st.stop()
-
+    
         # predict
         pred = model.predict(X_sample)[0]
-
         original_class = le_y.inverse_transform([pred])[0]  
-
         pred_label = "Violent" if original_class == 1 else "Non-Violent"
-
-        st.success(f"Predicted: **{pred_label}**")
-
+    
+        # get probabilities
+        prob_violent, prob_non_violent = 0, 0
         if hasattr(model, "predict_proba"):
             prob = model.predict_proba(X_sample)[0]
             if len(prob) == 2:
-                st.info(f"Probability Violent: {prob[0]:.3f} | Non-Violent: {prob[1]:.3f}")
-            else:
-                st.info("Probabilities: " + ", ".join([f"{p:.3f}" for p in prob]))
+                prob_violent, prob_non_violent = prob[0], prob[1]
+    
+        # اختيار اللون حسب النتيجة
+        title_color = "#e65100" if pred_label == "Violent" else "#f39c12"
+    
+        # custom styled output
+        st.markdown(f"""
+            <h3 style="color:{title_color};">Predicted: {pred_label}</h3>
+    
+            <div class="prob-bar">
+                <div class="prob-fill-violent" style="width:{prob_violent*100:.2f}%; ">
+                    Violent {prob_violent:.3f}
+                </div>
+            </div>
+    
+            <div class="prob-bar">
+                <div class="prob-fill-nonviolent" style="width:{prob_non_violent*100:.2f}%; ">
+                    Non-Violent {prob_non_violent:.3f}
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+    
+
 
 # ----------------------------
 # VISUALIZATIONS

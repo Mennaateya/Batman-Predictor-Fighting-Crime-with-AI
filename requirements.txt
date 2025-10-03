@@ -4,6 +4,7 @@ numpy
 matplotlib
 seaborn
 plotly
+openpyxl
 scikit-learn
 xgboost
 lightgbm
