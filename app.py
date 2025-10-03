@@ -256,8 +256,8 @@ if page == "Home":
     with col1:
         st.markdown("**Load sample data**")
         if st.button("Load sample (5k rows)"):
-            if Path("Crime_Data_from_2020_to_Present.csv").exists():
-                df_sample = pd.read_csv("Crime_Data_from_2020_to_Present.csv", nrows=5000)
+            if Path("Sample.xlsx").exists():
+                df_sample = pd.read_excel("Sample.xlsx", nrows=5000)
                 st.dataframe(df_sample.head())
             else:
                 st.warning("Dataset CSV not found in project folder.")
