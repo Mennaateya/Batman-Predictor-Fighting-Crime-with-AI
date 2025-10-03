@@ -396,7 +396,7 @@ elif page == "Visualizations":
     # --------------------- HEATMAP ---------------------
     with tab2:
         st.header("Heatmap: Day of Week × Hour of Day")
-        if Path("Crime_Data_from_2020_to_Present.csv").exists():
+        if Path("Sample_200k.csv").exists():
             df_full = load_data()
 
             if "TIME OCC" in df_full.columns:
@@ -441,7 +441,7 @@ elif page == "Visualizations":
         st.header("Key Charts")
         st.markdown("Monthly trend and top crime types.")
 
-        if Path("Crime_Data_from_2020_to_Present.csv").exists():
+        if Path("Sample_200k.csv").exists():
             df_full = load_data()
 
             # Monthly trend
