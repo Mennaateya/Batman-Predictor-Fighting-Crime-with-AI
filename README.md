@@ -74,10 +74,47 @@ All trained models are saved as `.pkl` files inside the `Files/` directory.
 
 ---
 
+## 📈 Results  
+
+| Model                   | Accuracy | Precision | Recall | F1   |
+|--------------------------|----------|-----------|--------|------|
+| Logistic Regression      | 0.8855   | 0.8831    | 0.8230 | 0.8520 |
+| KNN                      | 0.9926   | 0.9901    | 0.9913 | 0.9907 |
+| Decision Tree            | 0.9999   | 0.9999    | 0.9999 | 0.9999 |
+| Random Forest            | 0.9999   | 0.9999    | 0.9999 | 0.9999 |
+| Extra Trees              | 0.9999   | 0.9999    | 0.9998 | 0.9999 |
+| Gaussian Naive Bayes     | 0.8697   | 0.8884    | 0.7713 | 0.8257 |
+| Bagging                  | 0.9999   | 0.9999    | 0.9999 | 0.9999 |
+| AdaBoost                 | 0.9890   | 0.9807    | 0.9920 | 0.9863 |
+| XGBoost                  | 0.9999   | 0.9999    | 1.0000 | 0.9999 |
+| LightGBM                 | 0.9999   | 0.9999    | 1.0000 | 0.9999 |
+| CatBoost                 | 0.9999   | 0.9999    | 0.9999 | 0.9999 |
+
+👉 **Best performers:** XGBoost & LightGBM achieved the highest accuracy (≈ 100%).  
+👉 Logistic Regression & Naive Bayes were weaker baselines, while ensemble/boosting methods dominated.  
+
+---
 ## 🚀 How to Run  
 
 1. Clone the repository:  
    ```bash
-   git clone https://github.com/USERNAME/Batman-Predictor-Fighting-Crime-with-AI.git
+   git clone https://github.com/Mennaateya/Batman-Predictor-Fighting-Crime-with-AI
    cd Batman-Predictor-Fighting-Crime-with-AI
+   pip install requirements
 
+---
+⚡ Future Work
+
+Experimenting with Deep Learning models (RNNs, LSTMs) for time-based crime prediction.
+
+Adding an alert system for real-time crime hot-spot detection.
+
+Hyperparameter tuning with Optuna for more robust optimization.
+
+---
+
+📝 Contact
+👩‍💻 LinkedIn: https://www.linkedin.com/in/menna-ateya
+📧 Email: mennaateya30@gmail.com
+
+🦇 Built with AI power — because Gotham deserves better.
