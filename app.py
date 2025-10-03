@@ -318,59 +318,59 @@ elif page == "Predict":
 
         submit = st.form_submit_button("Predict")
 
-if submit:
-    # assemble single-row df
-    sample = pd.DataFrame([{
-        "Crm Cd 1": crm_cd1,
-        "Crm Cd Desc": crm_cd_desc,
-        "Weapon Used Cd": weapon_used_cd,
-        "Premis Cd": premis_cd,
-        "Weapon Desc": weapon_desc,
-        "Vict Age": vict_age,
-        "Vict Descent": vict_descent,
-        "Vict Sex": vict_sex,
-        "Status Desc": status_desc
-    }])
-
-    # apply encoding + transforms
-    try:
-        X_sample = encode_and_transform(sample)
-    except Exception as e:
-        st.error(f"Preprocessing failed: {e}")
-        st.stop()
-
-    # predict
-    pred = model.predict(X_sample)[0]
-    original_class = le_y.inverse_transform([pred])[0]  
-    pred_label = "Violent" if original_class == 1 else "Non-Violent"
-
-    # get probabilities
-    prob_violent, prob_non_violent = 0, 0
-    if hasattr(model, "predict_proba"):
-        prob = model.predict_proba(X_sample)[0]
-        if len(prob) == 2:
-            prob_violent, prob_non_violent = prob[0], prob[1]
-
-    # اختيار اللون حسب النتيجة
-    title_color = "#e65100" if pred_label == "Violent" else "#f39c12"
-
-    # custom styled output
-    st.markdown(f"""
-        <h3 style="color:{title_color};">Predicted: {pred_label}</h3>
-
-        <div class="prob-bar">
-            <div class="prob-fill-violent" style="width:{prob_violent*100:.2f}%; ">
-                Violent {prob_violent:.3f}
+    if submit:
+        # assemble single-row df
+        sample = pd.DataFrame([{
+            "Crm Cd 1": crm_cd1,
+            "Crm Cd Desc": crm_cd_desc,
+            "Weapon Used Cd": weapon_used_cd,
+            "Premis Cd": premis_cd,
+            "Weapon Desc": weapon_desc,
+            "Vict Age": vict_age,
+            "Vict Descent": vict_descent,
+            "Vict Sex": vict_sex,
+            "Status Desc": status_desc
+        }])
+    
+        # apply encoding + transforms
+        try:
+            X_sample = encode_and_transform(sample)
+        except Exception as e:
+            st.error(f"Preprocessing failed: {e}")
+            st.stop()
+    
+        # predict
+        pred = model.predict(X_sample)[0]
+        original_class = le_y.inverse_transform([pred])[0]  
+        pred_label = "Violent" if original_class == 1 else "Non-Violent"
+    
+        # get probabilities
+        prob_violent, prob_non_violent = 0, 0
+        if hasattr(model, "predict_proba"):
+            prob = model.predict_proba(X_sample)[0]
+            if len(prob) == 2:
+                prob_violent, prob_non_violent = prob[0], prob[1]
+    
+        # اختيار اللون حسب النتيجة
+        title_color = "#e65100" if pred_label == "Violent" else "#f39c12"
+    
+        # custom styled output
+        st.markdown(f"""
+            <h3 style="color:{title_color};">Predicted: {pred_label}</h3>
+    
+            <div class="prob-bar">
+                <div class="prob-fill-violent" style="width:{prob_violent*100:.2f}%; ">
+                    Violent {prob_violent:.3f}
+                </div>
             </div>
-        </div>
-
-        <div class="prob-bar">
-            <div class="prob-fill-nonviolent" style="width:{prob_non_violent*100:.2f}%; ">
-                Non-Violent {prob_non_violent:.3f}
+    
+            <div class="prob-bar">
+                <div class="prob-fill-nonviolent" style="width:{prob_non_violent*100:.2f}%; ">
+                    Non-Violent {prob_non_violent:.3f}
+                </div>
             </div>
-        </div>
-    """, unsafe_allow_html=True)
-
+        """, unsafe_allow_html=True)
+    
 
 
 # ----------------------------
