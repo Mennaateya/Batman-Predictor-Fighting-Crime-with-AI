@@ -113,6 +113,7 @@ All trained models are saved as `.pkl` files inside the `Files/` directory.
 ## 📝 Contact
 
 👩‍💻 LinkedIn: https://www.linkedin.com/in/menna-ateya
+
 📧 Email: mennaateya30@gmail.com
 
 🦇 Built with AI power — because Gotham deserves better.
