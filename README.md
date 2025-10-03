@@ -11,8 +11,7 @@ Inspired by Batman’s mission to fight crime, the project uses **real-world cri
 
 The dataset used in this project is the official **[Crime Data from 2020 to Present – Los Angeles](https://catalog.data.gov/dataset/crime-data-from-2020-to-present)**, provided by the **Los Angeles Police Department (LAPD)**.  
 
-👉 **Please download the dataset from the link above**  
-
+👉 **Only a sample dataset is uploaded here. Please download the full dataset from the official source above if you want to run the complete analysis.**
 ---
 
 ## ⚙️ Project Workflow  
