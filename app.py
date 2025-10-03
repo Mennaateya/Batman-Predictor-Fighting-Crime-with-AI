@@ -140,8 +140,8 @@ def load_pickle(fname):
 
 @st.cache_data
 def load_data(sample_size=50000):
-    df = pd.read_excel(
-        "Sample.xlsx",
+    df = pd.read_csv(
+        "Sample_200k.csv",
         parse_dates=["DATE OCC"],
         engine="openpyxl"
     )
@@ -256,8 +256,8 @@ if page == "Home":
     with col1:
         st.markdown("**Load sample data**")
         if st.button("Load sample (5k rows)"):
-            if Path("Sample.xlsx").exists():
-                df_sample = pd.read_excel("Sample.xlsx", nrows=5000)
+            if Path("Sample_200k.csv"").exists():
+                df_sample = pd.read_csv("Sample_200k.csv"", nrows=5000)
                 st.dataframe(df_sample.head())
             else:
                 st.warning("Dataset CSV not found in project folder.")
