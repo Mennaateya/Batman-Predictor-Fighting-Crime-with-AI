@@ -65,7 +65,7 @@ All trained models are saved as `.pkl` files inside the `Files/` directory.
 
 ## 📊 Visualizations  
 
-- **Interactive Folium Map** of 5000 sampled crimes.  
+- **Interactive Folium Map**.  
 - **Crime heatmap** by day & hour.  
 - **Violin plots** for crime types across hours.  
 - **Monthly trends** showing rise/fall in crime rates.  
@@ -98,10 +98,9 @@ All trained models are saved as `.pkl` files inside the `Files/` directory.
 
 1. Clone the repository:  
    ```bash
-   git clone https://github.com/Mennaateya/Batman-Predictor-Fighting-Crime-with-AI
+   git clone https://github.com/Mennaateya/Batman-Predictor-Fighting-Crime-with-AI.git
    cd Batman-Predictor-Fighting-Crime-with-AI
-   pip install requirements
-
+   pip install -r requirements.txt
 ---
 ⚡ Future Work
 
