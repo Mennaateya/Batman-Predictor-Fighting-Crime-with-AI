@@ -102,7 +102,7 @@ All trained models are saved as `.pkl` files inside the `Files/` directory.
    cd Batman-Predictor-Fighting-Crime-with-AI
    pip install -r requirements.txt
 ---
-⚡ Future Work
+## ⚡ Future Work
 
 - Experimenting with Deep Learning models (RNNs, LSTMs) for time-based crime prediction.
 - Adding an alert system for real-time crime hot-spot detection.
@@ -110,7 +110,8 @@ All trained models are saved as `.pkl` files inside the `Files/` directory.
 
 ---
 
-📝 Contact
+## 📝 Contact
+
 👩‍💻 LinkedIn: https://www.linkedin.com/in/menna-ateya
 📧 Email: mennaateya30@gmail.com
 
