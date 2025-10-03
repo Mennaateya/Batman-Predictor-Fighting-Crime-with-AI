@@ -13,6 +13,8 @@ The dataset used in this project is the official **[Crime Data from 2020 to Pres
 
 👉 **Only a sample dataset is uploaded here. Please download the full dataset from the official source above if you want to run the complete analysis.**
 
+🚀 **Try the Streamlit App here** [Batman Predictor: Fighting Crime With Ai](https://batman-predictor-fighting-crime-with-ai.streamlit.app/)
+
 ---
 
 ## ⚙️ Project Workflow  
