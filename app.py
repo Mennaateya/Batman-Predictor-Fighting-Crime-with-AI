@@ -2,121 +2,158 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import pickle
+import warnings
 from pathlib import Path
+
 import plotly.express as px
 import matplotlib.pyplot as plt
 import seaborn as sns
 import streamlit.components.v1 as components
 
-# ---------------------------------
-# Batman Theme (Dark Gotham Style)
-# ---------------------------------
+
+# ============================================================
+# Warnings
+# ============================================================
+
+# These warnings come from loading serialized sklearn/xgboost
+# artifacts created with older versions.
+# They are handled separately in the deployment environment.
+warnings.filterwarnings(
+    "ignore",
+    message="Trying to unpickle estimator.*"
+)
+
+warnings.filterwarnings(
+    "ignore",
+    message=".*serialized model.*older version of XGBoost.*"
+)
+
+
+# ============================================================
+# App Configuration
+# ============================================================
+
 st.set_page_config(
-    page_title="🦇 Batman Crime Predictor",
+    page_title="🦇 LA Crime Explorer",
+    page_icon="🦇",
     layout="wide",
     initial_sidebar_state="auto"
 )
 
+
+# ============================================================
+# Project Paths
+# ============================================================
+
+FILES_DIR = Path("Files")
+DATA_FILE = Path("crime_sample.csv")
+
+SAMPLE_SIZE = 50000
+
+
+# ============================================================
+# Model Configuration
+# ============================================================
+
+MODEL_NAMES = [
+    "XGBoost",
+    "RandomForestClassifier",
+    "LogisticRegression",
+]
+
+MODEL_DISPLAY_NAMES = {
+    "XGBoost": "XGBoost",
+    "RandomForestClassifier": "Random Forest",
+    "LogisticRegression": "Logistic Regression",
+}
+
+
+# ============================================================
+# Batman Theme
+# ============================================================
+
 st.markdown(
     """
     <style>
-    :root{
-      --bat-yellow: #f1c40f;
-      --bg-dark: #0d0d0d;
-      --panel-dark: #1a1a1a;
-      --text-light: #f5f5f5;
-      --bat-orange-dark: #e67e22;
-      --bat-orange-light: #f39c12;
+
+    :root {
+        --yellow: #f1c40f;
+        --yellow-dark: #d4ac0d;
+        --bg: #0d0d0d;
+        --panel: #181818;
+        --border: #333333;
+        --text: #f5f5f5;
+        --muted: #bdbdbd;
     }
 
-    /* App background & text */
-    html, body, .stApp {
-      background-color: var(--bg-dark) !important;
-      color: var(--text-light) !important;
+    html,
+    body,
+    .stApp {
+        background-color: var(--bg) !important;
+        color: var(--text) !important;
     }
 
-    /* Headings */
-    h1, h2, h3, h4,
-    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4,
-    .css-1v3fvcr h1, .css-10trblm h1 {
-      color: var(--bat-yellow) !important;
-      text-shadow: 0 0 6px rgba(241,196,15,0.12);
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 3rem;
     }
 
-    /* Sidebar */
+    h1,
+    h2,
+    h3,
+    h4 {
+        color: var(--yellow) !important;
+    }
+
     section[data-testid="stSidebar"] {
-      background-color: var(--panel-dark) !important;
-      color: var(--bat-yellow) !important;
+        background-color: var(--panel) !important;
     }
+
     section[data-testid="stSidebar"] * {
-      color: var(--bat-yellow) !important;
+        color: var(--text) !important;
     }
 
-    /* Buttons */
-    div.stButton > button, button[kind="secondary"], button {
-      background-color: var(--bat-yellow) !important;
-      color: #000000 !important;
-      border: 1px solid #000000 !important;
-      font-weight: 600 !important;
-      box-shadow: 0 2px 0 rgba(0,0,0,0.6) !important;
-    }
-    .stButton>button:hover {
-      background-color: #d4ac0d !important;
-      color: #000 !important;
+    section[data-testid="stSidebar"] h1,
+    section[data-testid="stSidebar"] h2,
+    section[data-testid="stSidebar"] h3 {
+        color: var(--yellow) !important;
     }
 
-    /* DataFrames */
-    .stDataFrame, .dataframe, .element-container {
-      background-color: transparent !important;
-      color: var(--text-light) !important;
+    div.stButton > button,
+    .stFormSubmitButton > button {
+        background-color: var(--yellow) !important;
+        color: #000000 !important;
+        border: 1px solid #000000 !important;
+        font-weight: 700 !important;
+        border-radius: 8px !important;
     }
 
-    /* Metric values */
-    [data-testid="stMetricValue"] {
-      color: var(--bat-yellow) !important;
+    div.stButton > button:hover,
+    .stFormSubmitButton > button:hover {
+        background-color: var(--yellow-dark) !important;
+        color: #000000 !important;
     }
 
-    /* Cards / Panels */
-    .css-1d391kg, .css-1vsu8ta, .css-11h0k4r, .css-18e3th9 {
-      background-color: var(--panel-dark) !important;
-      color: var(--text-light) !important;
+    a,
+    a:link,
+    a:visited {
+        color: var(--yellow) !important;
     }
 
-    /* Plotly bg fix */
-    .js-plotly-plot .plotly, .plot-container {
-      background-color: transparent !important;
+    div[data-testid="stMetric"] {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 15px;
     }
 
-    /* Links */
-    a, a:link, a:visited {
-      color: var(--bat-yellow) !important;
+    div[data-testid="stMetricLabel"] {
+        color: var(--muted) !important;
     }
 
-    /* Progress bars */
-    .prob-bar {
-    height: 22px;
-    border-radius: 6px;
-    margin-bottom: 8px;
-    background-color: #333;
-    overflow: hidden;
-    }
-
-    .prob-fill-violent {
-    background: linear-gradient(90deg, #e65100, #ff6f00); /* برتقالي غامق → أفتح */
-    height: 100%;
-    text-align: right;
-    padding-right: 8px;
-    color: #fff;
-    font-weight: bold;
-    }
-
-    .prob-fill-nonviolent {
-    background: linear-gradient(90deg, #ff9800, #ffcc80); /* برتقالي أفتح */
-    height: 100%;
-    text-align: right;
-    padding-right: 8px;
-    color: #000;
-    font-weight: bold;
+    div[data-testid="stMetricValue"] {
+        color: var(--yellow) !important;
+        font-weight: 800 !important;
     }
 
     </style>
@@ -125,60 +162,208 @@ st.markdown(
 )
 
 
-# ----------------------------
-# Helpers: load artifacts safely
-# ----------------------------
-FILES_DIR = Path("Files")
+# ============================================================
+# Helpers
+# ============================================================
 
 @st.cache_resource
-def load_pickle(fname):
-    path = FILES_DIR / fname
+def load_pickle(filename):
+    path = FILES_DIR / filename
+
     if not path.exists():
         return None
-    with open(path, "rb") as f:
-        return pickle.load(f)
+
+    try:
+        with open(path, "rb") as f:
+            return pickle.load(f)
+
+    except Exception as e:
+        st.error(
+            f"Could not load `{filename}`.\n\n"
+            f"Error: {e}"
+        )
+        return None
+
 
 @st.cache_data
-def load_data(sample_size=50000):
+def load_data(sample_size=SAMPLE_SIZE):
+
+    if not DATA_FILE.exists():
+        return None
+
     df = pd.read_csv(
-        "Sample_200k.csv",
-        parse_dates=["DATE OCC"],
+        DATA_FILE,
+        low_memory=False
     )
 
+    # Avoid pandas date inference warning.
+    if "DATE OCC" in df.columns:
+        df["DATE OCC"] = pd.to_datetime(
+            df["DATE OCC"],
+            errors="coerce",
+            format="mixed"
+        )
+
     if sample_size and len(df) > sample_size:
-        df = df.sample(n=sample_size, random_state=42)
+        df = df.sample(
+            n=sample_size,
+            random_state=42
+        )
+
     return df
 
-# --------------------
-# Load artifacts
-# --------------------
-le_crm_cd_desc = load_pickle("Crm Cd Desc_label_encoder.pkl")
-le_vict_descent = load_pickle("Vict Descent_label_encoder.pkl")
-le_weapon_desc = load_pickle("Weapon Desc_label_encoder.pkl")
-le_status_desc = load_pickle("Status Desc_label_encoder.pkl")
-le_y = load_pickle("le_y.pkl")
 
-yeo_johnson = load_pickle("yeo-johnson.pkl")
-std_scaler = load_pickle("StandardScaler.pkl")
-std2_scaler = load_pickle("StandardScaler2.pkl")
-robust_scaler = load_pickle("RobustScaler.pkl")
+def get_model_accuracy(results, model_name):
 
-# load models
+    if not results:
+        return None
+
+    if model_name not in results:
+        return None
+
+    result = results[model_name]
+
+    if not isinstance(result, dict):
+        return None
+
+    metrics = result.get("metrics", {})
+
+    possible_keys = [
+        "accuracy",
+        "Accuracy",
+        "acc",
+        "ACC"
+    ]
+
+    for key in possible_keys:
+        if key in metrics:
+            try:
+                return float(metrics[key])
+            except (TypeError, ValueError):
+                return None
+
+    return None
+
+
+def load_results():
+
+    path = FILES_DIR / "results_dict.pkl"
+
+    if not path.exists():
+        return None
+
+    try:
+        with open(path, "rb") as f:
+            return pickle.load(f)
+
+    except Exception:
+        return None
+
+
+def get_ordered_models(results=None):
+
+    available = [
+        model
+        for model in MODEL_NAMES
+        if model in available_models
+    ]
+
+    if not results:
+        return available
+
+    accuracies = {
+        model: get_model_accuracy(
+            results,
+            model
+        )
+        for model in available
+    }
+
+    # Sort by accuracy descending.
+    # If accuracy is unavailable, keep the preferred order.
+    ordered = sorted(
+        available,
+        key=lambda model: (
+            accuracies[model] is not None,
+            accuracies[model] if accuracies[model] is not None else -1
+        ),
+        reverse=True
+    )
+
+    return ordered
+
+
+# ============================================================
+# Load Preprocessing Artifacts
+# ============================================================
+
+le_crm_cd_desc = load_pickle(
+    "Crm Cd Desc_label_encoder.pkl"
+)
+
+le_vict_descent = load_pickle(
+    "Vict Descent_label_encoder.pkl"
+)
+
+le_weapon_desc = load_pickle(
+    "Weapon Desc_label_encoder.pkl"
+)
+
+le_status_desc = load_pickle(
+    "Status Desc_label_encoder.pkl"
+)
+
+le_y = load_pickle(
+    "le_y.pkl"
+)
+
+yeo_johnson = load_pickle(
+    "yeo-johnson.pkl"
+)
+
+std_scaler = load_pickle(
+    "StandardScaler.pkl"
+)
+
+std2_scaler = load_pickle(
+    "StandardScaler2.pkl"
+)
+
+robust_scaler = load_pickle(
+    "RobustScaler.pkl"
+)
+
+
+# ============================================================
+# Available Models
+# ============================================================
+
 available_models = {}
-if FILES_DIR.exists():
-    for p in FILES_DIR.glob("*.pkl"):
-        name = p.stem
-        if any(skip in name for skip in [
-            "encoder", "Scaler", "scaler", "imputer", "yeo", "le_y",
-            "X_train", "y_train", "X_test", "y_test", "results_dict"
-        ]):
-            continue
-        available_models[name] = str(p)
 
-# mapping for Vict Sex
-VICT_SEX_MAP = {'M':0,'F':1,'H':2,'X':3}
+for model_name in MODEL_NAMES:
 
-# final feature list
+    model_path = FILES_DIR / f"{model_name}.pkl"
+
+    if model_path.exists():
+        available_models[model_name] = str(model_path)
+
+
+# ============================================================
+# Victim Sex Mapping
+# ============================================================
+
+VICT_SEX_MAP = {
+    "M": 0,
+    "F": 1,
+    "H": 2,
+    "X": 3
+}
+
+
+# ============================================================
+# Model Features
+# ============================================================
+
 MODEL_FEATURES = [
     "Crm Cd 1",
     "Crm Cd Desc",
@@ -191,235 +376,1019 @@ MODEL_FEATURES = [
     "Status Desc"
 ]
 
-def encode_and_transform(input_df: pd.DataFrame):
+
+# ============================================================
+# Preprocessing
+# ============================================================
+
+def encode_and_transform(input_df):
+
     df = input_df.copy()
 
-    if le_crm_cd_desc is not None:
-        df["Crm Cd Desc"] = le_crm_cd_desc.transform(df["Crm Cd Desc"].astype(str))
-    else:
-        df["Crm Cd Desc"], _ = pd.factorize(df["Crm Cd Desc"].astype(str))
+    required_encoders = {
+        "Crm Cd Desc": le_crm_cd_desc,
+        "Vict Descent": le_vict_descent,
+        "Weapon Desc": le_weapon_desc,
+        "Status Desc": le_status_desc,
+    }
 
-    if le_vict_descent is not None:
-        df["Vict Descent"] = le_vict_descent.transform(df["Vict Descent"].astype(str))
-    else:
-        df["Vict Descent"], _ = pd.factorize(df["Vict Descent"].astype(str))
+    for name, encoder in required_encoders.items():
 
-    if le_weapon_desc is not None:
-        df["Weapon Desc"] = le_weapon_desc.transform(df["Weapon Desc"].astype(str))
-    else:
-        df["Weapon Desc"], _ = pd.factorize(df["Weapon Desc"].astype(str))
+        if encoder is None:
+            raise ValueError(
+                f"{name} label encoder was not found."
+            )
 
-    if le_status_desc is not None:
-        df["Status Desc"] = le_status_desc.transform(df["Status Desc"].astype(str))
-    else:
-        df["Status Desc"], _ = pd.factorize(df["Status Desc"].astype(str))
+    try:
 
-    df["Vict Sex"] = df["Vict Sex"].map(lambda v: VICT_SEX_MAP.get(v, v) if isinstance(v, str) else v)
-    df["Vict Sex"] = pd.to_numeric(df["Vict Sex"], errors="coerce").fillna(0)
+        df["Crm Cd Desc"] = (
+            le_crm_cd_desc.transform(
+                df["Crm Cd Desc"].astype(str)
+            )
+        )
 
+        df["Vict Descent"] = (
+            le_vict_descent.transform(
+                df["Vict Descent"].astype(str)
+            )
+        )
+
+        df["Weapon Desc"] = (
+            le_weapon_desc.transform(
+                df["Weapon Desc"].astype(str)
+            )
+        )
+
+        df["Status Desc"] = (
+            le_status_desc.transform(
+                df["Status Desc"].astype(str)
+            )
+        )
+
+    except ValueError as e:
+
+        raise ValueError(
+            "One or more categorical values were not "
+            "seen during model training.\n\n"
+            f"Details: {e}"
+        )
+
+    # Victim sex
+    df["Vict Sex"] = df["Vict Sex"].map(
+        lambda value:
+        VICT_SEX_MAP.get(value, value)
+        if isinstance(value, str)
+        else value
+    )
+
+    df["Vict Sex"] = pd.to_numeric(
+        df["Vict Sex"],
+        errors="coerce"
+    ).fillna(0)
+
+    # Standard scaling
     if std_scaler is not None:
-        df[["Crm Cd Desc","Vict Descent"]] = std_scaler.transform(df[["Crm Cd Desc","Vict Descent"]])
-    for c in ["Crm Cd 1","Premis Cd"]:
-        df[c] = np.log1p(pd.to_numeric(df[c], errors="coerce").fillna(0))
-    if std2_scaler is not None:
-        df[["Crm Cd 1","Premis Cd"]] = std2_scaler.transform(df[["Crm Cd 1","Premis Cd"]])
-    for c in ["Vict Age","Weapon Used Cd"]:
-        df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
-    if robust_scaler is not None:
-        df[["Vict Age","Weapon Used Cd"]] = robust_scaler.transform(df[["Vict Age","Weapon Used Cd"]])
 
+        df[
+            ["Crm Cd Desc", "Vict Descent"]
+        ] = std_scaler.transform(
+            df[
+                ["Crm Cd Desc", "Vict Descent"]
+            ]
+        )
+
+    # Log transform
+    for column in [
+        "Crm Cd 1",
+        "Premis Cd"
+    ]:
+
+        df[column] = np.log1p(
+            pd.to_numeric(
+                df[column],
+                errors="coerce"
+            ).fillna(0)
+        )
+
+    # Standard scaler 2
+    if std2_scaler is not None:
+
+        df[
+            ["Crm Cd 1", "Premis Cd"]
+        ] = std2_scaler.transform(
+            df[
+                ["Crm Cd 1", "Premis Cd"]
+            ]
+        )
+
+    # Numeric features
+    for column in [
+        "Vict Age",
+        "Weapon Used Cd"
+    ]:
+
+        df[column] = pd.to_numeric(
+            df[column],
+            errors="coerce"
+        ).fillna(0)
+
+    # Robust scaler
+    if robust_scaler is not None:
+
+        df[
+            ["Vict Age", "Weapon Used Cd"]
+        ] = robust_scaler.transform(
+            df[
+                ["Vict Age", "Weapon Used Cd"]
+            ]
+        )
+
+    # Yeo-Johnson
     if yeo_johnson is not None:
-        apply_cols = [c for c in ["Weapon Desc","Status Desc","Vict Sex"] if c in df.columns]
-        if apply_cols:
-            df[apply_cols] = yeo_johnson.transform(df[apply_cols])
+
+        columns = [
+            "Weapon Desc",
+            "Status Desc",
+            "Vict Sex"
+        ]
+
+        df[columns] = yeo_johnson.transform(
+            df[columns]
+        )
 
     return df[MODEL_FEATURES]
 
-# ----------------------------
-# Sidebar navigation
-# ----------------------------
-st.sidebar.title("Gotham Navigator")
-page = st.sidebar.selectbox("Navigate", ["Home", "Predict", "Visualizations", "Model Comparison", "About"])
+
+# ============================================================
+# Sidebar
+# ============================================================
+
+st.sidebar.title("🦇 Navigator")
+
+page = st.sidebar.selectbox(
+    "Navigate",
+    [
+        "Home",
+        "Predict",
+        "Visualizations",
+        "Model Comparison",
+        "About"
+    ]
+)
 
 
-# ----------------------------
+# ============================================================
 # HOME
-# ----------------------------
+# ============================================================
+
 if page == "Home":
-    st.title("Los Angeles Crime Explorer")
-    st.markdown("**Dataset**: LAPD — Crime incidents (2020 - present). This app lets you explore, visualize, and predict whether a given incident is Violent or Non-Violent.")
-    st.markdown("---")
-    st.header("Quick Actions")
-    col1, col2 = st.columns(2)
+
+    st.title("🦇 Los Angeles Crime Explorer")
+
+    st.markdown(
+        """
+        Explore crime patterns across Los Angeles,
+        discover the most common incidents,
+        and use machine learning to predict whether
+        an incident belongs to **Part 1 or Part 2**.
+        """
+    )
+
+    st.divider()
+
+    df_home = load_data()
+
+    if df_home is None:
+
+        st.error(
+            f"Dataset `{DATA_FILE}` was not found."
+        )
+
+        st.stop()
+
+    # --------------------------------------------------------
+    # KPIs
+    # --------------------------------------------------------
+
+    total_crimes = len(df_home)
+
+    unique_crimes = (
+        df_home["Crm Cd Desc"].nunique()
+        if "Crm Cd Desc" in df_home.columns
+        else 0
+    )
+
+    part1_percentage = 0
+
+    if "Part 1-2" in df_home.columns:
+
+        part1_count = (
+            df_home["Part 1-2"] == 1
+        ).sum()
+
+        if total_crimes > 0:
+            part1_percentage = (
+                part1_count /
+                total_crimes *
+                100
+            )
+
+    col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.markdown("**Load sample data**")
-        if st.button("Load sample (5k rows)"):
-            if Path("Sample_200k.csv").exists():
-                df_sample = pd.read_csv("Sample_200k.csv", nrows=5000)
-                st.dataframe(df_sample.head())
-            else:
-                st.warning("Dataset CSV not found in project folder.")
+        st.metric(
+            "Sampled Incidents",
+            f"{total_crimes:,}"
+        )
 
     with col2:
-        st.markdown("**Available models**")
-        if available_models:
-            st.write(list(available_models.keys()))
-        else:
-            st.warning("No ML models (.pkl) found in Files/.")
+        st.metric(
+            "Crime Types",
+            f"{unique_crimes:,}"
+        )
 
-    st.markdown("---")
-    st.markdown("**How to use**")
-    st.markdown("""
-    1. Go to **Predict** to input an incident's features and get a prediction (**Violent** / **Non-Violent**).  
-    2. Go to **Visualizations** to explore the crime map and time heatmaps.  
-    3. Use **Model Comparison** to inspect saved metrics and confusion matrices.
-    """)
-    st.caption("Tip: for best results, use the same encoders/scalers that were used during training (stored in Files/).")
+    with col3:
+        st.metric(
+            "Deployed Models",
+            len(available_models)
+        )
 
-# ----------------------------
-# PREDICT PAGE
-# ----------------------------
+    with col4:
+        st.metric(
+            "Part 1 Share",
+            f"{part1_percentage:.1f}%"
+        )
+
+    st.divider()
+
+    # --------------------------------------------------------
+    # Crime Trend
+    # --------------------------------------------------------
+
+    st.subheader("📈 Crime Trend")
+
+    if "DATE OCC" in df_home.columns:
+
+        monthly = (
+            df_home
+            .dropna(subset=["DATE OCC"])
+            .assign(
+                year_month=(
+                    df_home["DATE OCC"]
+                    .dt.to_period("M")
+                    .dt.to_timestamp()
+                )
+            )
+            .groupby("year_month")
+            .size()
+            .reset_index(name="count")
+        )
+
+        fig = px.line(
+            monthly,
+            x="year_month",
+            y="count",
+            markers=True,
+            labels={
+                "year_month": "Month",
+                "count": "Number of Incidents"
+            }
+        )
+
+        fig.update_traces(
+            line=dict(
+                color="#f1c40f",
+                width=3
+            ),
+            marker=dict(size=6)
+        )
+
+        fig.update_layout(
+            height=390,
+            margin=dict(
+                l=20,
+                r=20,
+                t=30,
+                b=20
+            ),
+            plot_bgcolor="#111111",
+            paper_bgcolor="#111111",
+            font=dict(color="#f5f5f5"),
+            xaxis=dict(gridcolor="#2c2c2c"),
+            yaxis=dict(gridcolor="#2c2c2c")
+        )
+
+        st.plotly_chart(
+            fig,
+            width="stretch"
+        )
+
+    # --------------------------------------------------------
+    # Top Crimes
+    # --------------------------------------------------------
+
+    if "Crm Cd Desc" in df_home.columns:
+
+        st.subheader("Most Common Crime Types")
+
+        top_crimes = (
+            df_home["Crm Cd Desc"]
+            .value_counts()
+            .nlargest(10)
+            .sort_values()
+        )
+
+        fig2 = px.bar(
+            x=top_crimes.values,
+            y=top_crimes.index,
+            orientation="h",
+            labels={
+                "x": "Number of Incidents",
+                "y": ""
+            }
+        )
+
+        fig2.update_traces(
+            marker_color="#e67e22"
+        )
+
+        fig2.update_layout(
+            height=430,
+            margin=dict(
+                l=20,
+                r=20,
+                t=20,
+                b=20
+            ),
+            plot_bgcolor="#111111",
+            paper_bgcolor="#111111",
+            font=dict(color="#f5f5f5"),
+            xaxis=dict(gridcolor="#2c2c2c"),
+            yaxis=dict(gridcolor="#2c2c2c")
+        )
+
+        st.plotly_chart(
+            fig2,
+            width="stretch"
+        )
+
+    st.divider()
+
+    # --------------------------------------------------------
+    # Features
+    # --------------------------------------------------------
+
+    st.subheader("🦇 Explore Gotham")
+
+    feature1, feature2, feature3 = st.columns(3)
+
+    with feature1:
+
+        with st.container(border=True):
+
+            st.markdown("### Predict Crime Category")
+
+            st.write(
+                "Enter details and use the "
+                "trained ML models to predict whether "
+                "the crime is classified as Part 1 or Part 2."
+            )
+
+    with feature2:
+
+        with st.container(border=True):
+
+            st.markdown("### Explore Crime Analytics")
+
+            st.write(
+                "Analyze crime trends, time patterns, "
+                "crime locations, and the most common "
+                "crime types across Los Angeles."
+            )
+
+    with feature3:
+
+        with st.container(border=True):
+
+            st.markdown("### Compare ML Models")
+
+            st.write(
+                "Inspect model accuracy, metrics, "
+                "confusion matrices, and classification reports."
+            )
+
+    if "DATE OCC" in df_home.columns:
+
+        valid_dates = df_home["DATE OCC"].dropna()
+
+        if not valid_dates.empty:
+
+            min_date = valid_dates.min()
+            max_date = valid_dates.max()
+
+            date_range = (
+                f"{min_date.strftime('%Y-%m-%d')} "
+                f"→ "
+                f"{max_date.strftime('%Y-%m-%d')}"
+            )
+
+            st.caption(
+                f"Dataset: LAPD Crime Data • "
+                f"Deployment sample: {total_crimes:,} incidents • "
+                f"Period: {date_range}"
+            )
+
+
+# ============================================================
+# PREDICT
+# ============================================================
+
 elif page == "Predict":
-    st.title("Predict Crime Severity (Part 1 vs Part 2)")
-    st.markdown("Fill the fields below (values should match training encodings where applicable).")
 
-    model_choice = st.selectbox("Choose model for prediction", options=list(available_models.keys()))
-    model_path = available_models.get(model_choice)
-    if model_path is None:
-        st.error("Model file not found.")
+    st.title("Predict Crime Category")
+
+    st.write(
+        "Use a trained machine learning model to predict "
+        "whether the incident belongs to **Part 1 or Part 2**."
+    )
+
+    # --------------------------------------------------------
+    # Explain Target Clearly
+    # --------------------------------------------------------
+
+    st.info(
+        """
+        **What does Part 1 vs Part 2 mean?**
+
+        **Part 1** → Major/serious crime category.
+
+        **Part 2** → Other, generally less serious offenses.
+        """
+    )
+
+    # --------------------------------------------------------
+    # Load Results
+    # --------------------------------------------------------
+
+    prediction_results = load_results()
+
+    ordered_models = get_ordered_models(
+        prediction_results
+    )
+
+    if not ordered_models:
+
+        st.error(
+            "No trained models were found. "
+            "Check the Files/ folder."
+        )
+
         st.stop()
 
-    model = load_pickle(Path(model_path).name)
+    # --------------------------------------------------------
+    # Model Selection
+    # --------------------------------------------------------
+
+    model_choice = st.selectbox(
+        "Choose model for prediction",
+        options=ordered_models,
+        index=0,
+        format_func=lambda x:
+        MODEL_DISPLAY_NAMES.get(x, x)
+    )
+
+    if prediction_results:
+
+        selected_accuracy = get_model_accuracy(
+            prediction_results,
+            model_choice
+        )
+
+        if selected_accuracy is not None:
+
+            st.caption(
+                f"Validation accuracy: "
+                f"{selected_accuracy:.2%}"
+            )
+
+    model = load_pickle(
+        f"{model_choice}.pkl"
+    )
+
     if model is None:
-        st.error("Could not load model pickle. Check Files/ folder.")
+
+        st.error(
+            "Could not load the selected model."
+        )
+
         st.stop()
 
-    le_y = load_pickle("le_y.pkl")
+    if le_y is None:
 
-    # Build input form
+        st.error(
+            "`le_y.pkl` was not found."
+        )
+
+        st.stop()
+
+    # --------------------------------------------------------
+    # Form
+    # --------------------------------------------------------
+
     with st.form("predict_form"):
-        st.subheader("Incident features")
+
+        st.subheader("Incident Features")
+
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            crm_cd1 = st.number_input("Crm Cd 1 (numeric code)", value=200.0, step=1.0)
-            crm_cd_desc = st.text_input("Crm Cd Desc", value="THEFT OF IDENTITY")
-            weapon_used_cd = st.number_input("Weapon Used Cd (numeric code)", value=0.0, step=1.0)
-        with col2:
-            premis_cd = st.number_input("Premis Cd (location code)", value=400.0, step=1.0)
-            weapon_desc = st.text_input("Weapon Desc", value="No Weapon")
-            vict_age = st.number_input("Victim Age", value=30.0, step=1.0, min_value=0.0)
-        with col3:
-            vict_descent = st.selectbox("Victim Descent", options=["H","W","B","O","A","I","U","X","Z"], index=0)
-            vict_sex = st.selectbox("Vict Sex", options=["M","F","H","X"], index=0)
-            status_desc = st.text_input("Status Desc", value="Invest Cont")
 
-        submit = st.form_submit_button("Predict")
+            crm_cd1 = st.number_input(
+                "Crm Cd 1",
+                value=200.0,
+                step=1.0
+            )
+
+            crm_cd_desc = st.text_input(
+                "Crm Cd Desc",
+                value="THEFT OF IDENTITY"
+            )
+
+            weapon_used_cd = st.number_input(
+                "Weapon Used Cd",
+                value=0.0,
+                step=1.0
+            )
+
+        with col2:
+
+            premis_cd = st.number_input(
+                "Premis Cd",
+                value=400.0,
+                step=1.0
+            )
+
+            weapon_desc = st.text_input(
+                "Weapon Desc",
+                value="No Weapon"
+            )
+
+            vict_age = st.number_input(
+                "Victim Age",
+                value=30.0,
+                min_value=0.0,
+                step=1.0
+            )
+
+        with col3:
+
+            vict_descent = st.selectbox(
+                "Victim Descent",
+                [
+                    "H",
+                    "W",
+                    "B",
+                    "O",
+                    "A",
+                    "I",
+                    "U",
+                    "X",
+                    "Z"
+                ]
+            )
+
+            vict_sex = st.selectbox(
+                "Victim Sex",
+                [
+                    "M",
+                    "F",
+                    "H",
+                    "X"
+                ]
+            )
+
+            status_desc = st.text_input(
+                "Status Desc",
+                value="Invest Cont"
+            )
+
+        submit = st.form_submit_button(
+            "Predict"
+        )
+
+    # --------------------------------------------------------
+    # Prediction
+    # --------------------------------------------------------
 
     if submit:
-        # assemble single-row df
-        sample = pd.DataFrame([{
-            "Crm Cd 1": crm_cd1,
-            "Crm Cd Desc": crm_cd_desc,
-            "Weapon Used Cd": weapon_used_cd,
-            "Premis Cd": premis_cd,
-            "Weapon Desc": weapon_desc,
-            "Vict Age": vict_age,
-            "Vict Descent": vict_descent,
-            "Vict Sex": vict_sex,
-            "Status Desc": status_desc
-        }])
-    
-        # apply encoding + transforms
+
+        sample = pd.DataFrame(
+            [{
+                "Crm Cd 1": crm_cd1,
+                "Crm Cd Desc": crm_cd_desc,
+                "Weapon Used Cd": weapon_used_cd,
+                "Premis Cd": premis_cd,
+                "Weapon Desc": weapon_desc,
+                "Vict Age": vict_age,
+                "Vict Descent": vict_descent,
+                "Vict Sex": vict_sex,
+                "Status Desc": status_desc
+            }]
+        )
+
         try:
-            X_sample = encode_and_transform(sample)
+
+            X_sample = encode_and_transform(
+                sample
+            )
+
+            pred = model.predict(
+                X_sample
+            )[0]
+
+            # Decode prediction safely.
+            try:
+
+                original_class = (
+                    le_y.inverse_transform(
+                        [int(pred)]
+                    )[0]
+                )
+
+            except Exception:
+
+                original_class = pred
+
         except Exception as e:
-            st.error(f"Preprocessing failed: {e}")
+
+            st.error(
+                f"Prediction failed:\n\n{e}"
+            )
+
             st.stop()
-    
-        # predict
-        pred = model.predict(X_sample)[0]
-        original_class = le_y.inverse_transform([pred])[0]  
-        pred_label = "Violent" if original_class == 1 else "Non-Violent"
-    
-        # get probabilities
-        prob_violent, prob_non_violent = 0, 0
+
+        # ----------------------------------------------------
+        # Prediction Label
+        # ----------------------------------------------------
+
+        if int(original_class) == 1:
+
+            pred_label = "Part 1"
+            explanation = (
+                "The model classified this incident "
+                "under the Part 1 crime category."
+            )
+
+        elif int(original_class) == 2:
+
+            pred_label = "Part 2"
+            explanation = (
+                "The model classified this incident "
+                "under the Part 2 crime category."
+            )
+
+        else:
+
+            pred_label = str(original_class)
+            explanation = "Predicted class from the trained model."
+
+        # ----------------------------------------------------
+        # Result
+        # ----------------------------------------------------
+
+        st.divider()
+
+        st.subheader("Prediction Result")
+
+        result_col1, result_col2 = st.columns(2)
+
+        with result_col1:
+
+            st.metric(
+                "Predicted Category",
+                pred_label
+            )
+
+        with result_col2:
+
+            st.metric(
+                "Model",
+                MODEL_DISPLAY_NAMES.get(
+                    model_choice,
+                    model_choice
+                )
+            )
+
+        st.write(explanation)
+
+        # ----------------------------------------------------
+        # Probabilities
+        # ----------------------------------------------------
+
         if hasattr(model, "predict_proba"):
-            prob = model.predict_proba(X_sample)[0]
-            if len(prob) == 2:
-                prob_violent, prob_non_violent = prob[0], prob[1]
-    
-        # اختيار اللون حسب النتيجة
-        title_color = "#e65100" if pred_label == "Violent" else "#f39c12"
-    
-        # custom styled output
-        st.markdown(f"""
-            <h3 style="color:{title_color};">Predicted: {pred_label}</h3>
-    
-            <div class="prob-bar">
-                <div class="prob-fill-violent" style="width:{prob_violent*100:.2f}%; ">
-                    Violent {prob_violent:.3f}
-                </div>
-            </div>
-    
-            <div class="prob-bar">
-                <div class="prob-fill-nonviolent" style="width:{prob_non_violent*100:.2f}%; ">
-                    Non-Violent {prob_non_violent:.3f}
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-    
+
+            try:
+
+                probabilities = (
+                    model.predict_proba(
+                        X_sample
+                    )[0]
+                )
+
+                prob_part1 = 0.0
+                prob_part2 = 0.0
+
+                model_classes = getattr(
+                    model,
+                    "classes_",
+                    []
+                )
+
+                for class_value, probability in zip(
+                    model_classes,
+                    probabilities
+                ):
+
+                    try:
+                        decoded_class = (
+                            le_y.inverse_transform(
+                                [int(class_value)]
+                            )[0]
+                        )
+
+                    except Exception:
+                        decoded_class = class_value
+
+                    if int(decoded_class) == 1:
+                        prob_part1 = float(probability)
+
+                    elif int(decoded_class) == 2:
+                        prob_part2 = float(probability)
+
+                st.subheader("Model Confidence")
+
+                confidence_html = f"""
+                <style>
+                    .confidence-wrapper {{
+                        display: flex;
+                        gap: 20px;
+                        width: 100%;
+                        margin-top: 10px;
+                        margin-bottom: 20px;
+                    }}
+
+                    .confidence-card {{
+                        flex: 1;
+                        background: #181818;
+                        border: 1px solid #333333;
+                        border-radius: 12px;
+                        padding: 18px;
+                        box-sizing: border-box;
+                    }}
+
+                    .confidence-header {{
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 12px;
+                    }}
+
+                    .confidence-title {{
+                        color: #f5f5f5;
+                        font-size: 18px;
+                        font-weight: 700;
+                    }}
+
+                    .confidence-value {{
+                        color: #f1c40f;
+                        font-size: 20px;
+                        font-weight: 800;
+                    }}
+
+                    .bar-background {{
+                        width: 100%;
+                        height: 16px;
+                        background: #2a2a2a;
+                        border-radius: 10px;
+                        overflow: hidden;
+                    }}
+
+                    .bar-fill {{
+                        height: 100%;
+                        background: linear-gradient(
+                            90deg,
+                            #d35400,
+                            #f39c12
+                        );
+                        border-radius: 10px;
+                    }}
+
+                    .confidence-description {{
+                        color: #bdbdbd;
+                        font-size: 13px;
+                        margin-top: 9px;
+                    }}
+                </style>
+
+                <div class="confidence-wrapper">
+
+                    <div class="confidence-card">
+
+                        <div class="confidence-header">
+
+                            <span class="confidence-title">
+                                🟠 Part 1
+                            </span>
+
+                            <span class="confidence-value">
+                                {prob_part1:.1%}
+                            </span>
+
+                        </div>
+
+                        <div class="bar-background">
+                            <div
+                                class="bar-fill"
+                                style="width: {prob_part1 * 100:.2f}%"
+                            ></div>
+                        </div>
+
+                        <div class="confidence-description">
+                            Major/serious crime category.
+                        </div>
+
+                    </div>
 
 
-# ----------------------------
+                    <div class="confidence-card">
+
+                        <div class="confidence-header">
+
+                            <span class="confidence-title">
+                                🟠 Part 2
+                            </span>
+
+                            <span class="confidence-value">
+                                {prob_part2:.1%}
+                            </span>
+
+                        </div>
+
+                        <div class="bar-background">
+                            <div
+                                class="bar-fill"
+                                style="width: {prob_part2 * 100:.2f}%"
+                            ></div>
+                        </div>
+
+                        <div class="confidence-description">
+                            Other crime category.
+                        </div>
+
+                    </div>
+
+                </div>
+                """
+
+                components.html(
+                    confidence_html,
+                    height=145
+                )
+
+            except Exception as e:
+
+                st.warning(
+                    f"Could not calculate prediction probabilities: {e}"
+                )
+# ============================================================
 # VISUALIZATIONS
-# ----------------------------
+# ============================================================
 
 elif page == "Visualizations":
+
     st.title("Visual Analytics")
-    st.markdown("Interactive visualizations for exploration. (Cached & sampled at 50k rows for speed.)")
 
-    tab1, tab2, tab3 = st.tabs(["Crime Map", "Time Heatmap", "Charts"])
+    st.write(
+        f"Interactive visualizations using the deployment "
+        f"sample dataset. Up to {SAMPLE_SIZE:,} rows are loaded."
+    )
 
-    # --------------------- MAP ---------------------
+    tab1, tab2 = st.tabs(
+        [
+            "Crime Map",
+            "Time Heatmap",
+        ]
+    )
+
+    # --------------------------------------------------------
+    # Crime Map
+    # --------------------------------------------------------
+
     with tab1:
-        st.header("Crime Map")
-        if Path("crime_map.html").exists():
-            with open("crime_map.html", "r", encoding="utf-8") as f:
-                html_data = f.read()
-            components.html(html_data, height=600)  
-        else:
-            st.warning("crime_map.html not found in app directory.")
 
-    # --------------------- HEATMAP ---------------------
+        st.header("Crime Map")
+
+        map_path = Path("crime_map.html")
+
+        if map_path.exists():
+
+            with open(
+                map_path,
+                "r",
+                encoding="utf-8"
+            ) as f:
+
+                html_data = f.read()
+
+            components.html(
+                html_data,
+                height=600
+            )
+
+        else:
+
+            st.warning(
+                "`crime_map.html` was not found."
+            )
+
+    # --------------------------------------------------------
+    # Heatmap
+    # --------------------------------------------------------
+
     with tab2:
-        st.header("Heatmap: Day of Week × Hour of Day")
-        if Path("Sample_200k.csv").exists():
-            df_full = load_data()
+
+        st.header(
+            "Heatmap: Day of Week × Hour of Day"
+        )
+
+        df_full = load_data()
+
+        if df_full is None:
+
+            st.warning(
+                f"Dataset `{DATA_FILE}` was not found."
+            )
+
+        else:
 
             if "TIME OCC" in df_full.columns:
-                df_full["Hour OCC"] = df_full["TIME OCC"].apply(
-                    lambda x: int(str(int(x)).zfill(4)[:2]) if pd.notnull(x) else 0
+
+                def extract_hour(value):
+
+                    if pd.isna(value):
+                        return 0
+
+                    try:
+                        return int(
+                            str(
+                                int(value)
+                            ).zfill(4)[:2]
+                        )
+
+                    except Exception:
+                        return 0
+
+                df_full["Hour OCC"] = (
+                    df_full["TIME OCC"]
+                    .apply(extract_hour)
                 )
+
             else:
+
                 df_full["Hour OCC"] = 0
 
-            df_full["day_of_week OCC"] = df_full["DATE OCC"].dt.dayofweek
+            df_full["day_of_week OCC"] = (
+                df_full["DATE OCC"]
+                .dt.dayofweek
+            )
 
             pivot = pd.pivot_table(
                 df_full,
-                values="DR_NO", 
+                values="DR_NO",
                 index="day_of_week OCC",
                 columns="Hour OCC",
                 aggfunc="count",
                 fill_value=0
             )
-            pivot.index = pivot.index.map({0:"Mon",1:"Tue",2:"Wed",3:"Thu",4:"Fri",5:"Sat",6:"Sun"})
-            pivot_long = pivot.reset_index().melt(
-                id_vars="day_of_week OCC",
-                var_name="Hour",
-                value_name="Crime_Count"
+
+            pivot.index = pivot.index.map({
+                0: "Mon",
+                1: "Tue",
+                2: "Wed",
+                3: "Thu",
+                4: "Fri",
+                5: "Sat",
+                6: "Sun"
+            })
+
+            pivot_long = (
+                pivot
+                .reset_index()
+                .melt(
+                    id_vars="day_of_week OCC",
+                    var_name="Hour",
+                    value_name="Crime_Count"
+                )
             )
 
             fig = px.density_heatmap(
@@ -428,115 +1397,282 @@ elif page == "Visualizations":
                 y="day_of_week OCC",
                 z="Crime_Count",
                 color_continuous_scale="YlOrRd",
-                labels={"Crime_Count": "Number of Crimes"}
+                labels={
+                    "Crime_Count":
+                    "Number of Crimes"
+                }
             )
-            fig.update_layout(width=900, height=500)
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.warning("CSV not found — heatmap unavailable.")
 
-    # --------------------- CHARTS ---------------------
-    with tab3:
-        st.header("Key Charts")
-        st.markdown("Monthly trend and top crime types.")
-
-        if Path("Sample_200k.csv").exists():
-            df_full = load_data()
-
-            # Monthly trend
-            df_full["year_month"] = df_full["DATE OCC"].dt.to_period("M").dt.to_timestamp()
-            crimes_monthly = df_full.groupby("year_month").size().reset_index(name="count")
-            fig = px.line(
-                crimes_monthly,
-                x="year_month",
-                y="count",
-                markers=True,
-                title="Monthly Crime Trend",
-                color_discrete_sequence=["#d73027"]
-            )
             fig.update_layout(
-                plot_bgcolor="#fff7cc",
-                paper_bgcolor="#fff2a8",
-                width=900,
-                height=450
+                height=500
             )
-            st.plotly_chart(fig, use_container_width=True)
 
-            # Top crime types
-            if "Crm Cd Desc" in df_full.columns:
-                top = df_full["Crm Cd Desc"].value_counts().nlargest(12)
-                fig2 = px.bar(
-                    x=top.values,
-                    y=top.index,
-                    orientation='h',
-                    title="Top Crime Types",
-                    color=top.values,
-                    color_continuous_scale="OrRd"
-                )
-                st.plotly_chart(fig2, use_container_width=True)
-            else:
-                st.info("Column 'Crm Cd Desc' not found in CSV.")
-        else:
-            st.info("CSV not available — charts not shown.")
-# ----------------------------
+            st.plotly_chart(
+                fig,
+                width="stretch"
+            )
+
+
+# ============================================================
 # MODEL COMPARISON
-# ----------------------------
-elif page == "Model Comparison":
-    st.title("Model Comparison")
-    st.markdown("Compare metrics, confusion matrices, and classification reports for saved models.")
+# ============================================================
 
-    results_path = FILES_DIR / "results_dict.pkl"
-    if not results_path.exists():
-        st.warning("No results file found. Please generate 'results_dict.pkl' in your notebook first.")
+elif page == "Model Comparison":
+
+    st.title("Model Comparison")
+
+    st.write(
+        "Compare the deployed models using accuracy, "
+        "classification metrics, confusion matrices, "
+        "and classification reports."
+    )
+
+    results_dict = load_results()
+
+    if results_dict is None:
+
+        st.warning(
+            "No `results_dict.pkl` was found."
+        )
+
         st.stop()
 
-    with open(results_path, "rb") as f:
-        results_dict = pickle.load(f)
+    ordered_models = get_ordered_models(
+        results_dict
+    )
 
-    model_names = list(results_dict.keys())
-    selected_model = st.selectbox("Select model to inspect", options=model_names)
+    if not ordered_models:
 
-    if selected_model:
-        res = results_dict[selected_model]
+        st.warning(
+            "No results were found for the deployed models."
+        )
 
-        # Metrics table
-        st.subheader("Metrics")
-        metrics_df = pd.DataFrame([res['metrics']])
-        st.dataframe(metrics_df)
+        st.stop()
 
-        # Confusion matrix
-        st.subheader("Confusion Matrix")
-        cm = res['confusion_matrix']
-        class_names = res.get('class_names', [0,1])
+    # --------------------------------------------------------
+    # Accuracy Overview
+    # --------------------------------------------------------
+
+    st.subheader("Model Accuracy")
+
+    accuracy_rows = []
+
+    for model_name in ordered_models:
+
+        accuracy = get_model_accuracy(
+            results_dict,
+            model_name
+        )
+
+        if accuracy is not None:
+
+            accuracy_rows.append(
+                {
+                    "Model":
+                    MODEL_DISPLAY_NAMES.get(
+                        model_name,
+                        model_name
+                    ),
+
+                    "Accuracy":
+                    f"{accuracy:.2%}"
+                }
+            )
+
+    if accuracy_rows:
+
+        accuracy_df = pd.DataFrame(
+            accuracy_rows
+        )
+
+        st.dataframe(
+            accuracy_df,
+            hide_index=True,
+            width="stretch"
+        )
+
+    # --------------------------------------------------------
+    # Model Selection
+    # --------------------------------------------------------
+
+    selected_model = st.selectbox(
+        "Select model to inspect",
+        options=ordered_models,
+        index=0,
+        format_func=lambda x:
+        MODEL_DISPLAY_NAMES.get(x, x)
+    )
+
+    res = results_dict[selected_model]
+
+    selected_accuracy = get_model_accuracy(
+        results_dict,
+        selected_model
+    )
+
+    if selected_accuracy is not None:
+
+        st.metric(
+            "Accuracy",
+            f"{selected_accuracy:.2%}"
+        )
+
+    # --------------------------------------------------------
+    # Metrics
+    # --------------------------------------------------------
+
+    st.subheader("Metrics")
+
+    metrics = res.get(
+        "metrics",
+        {}
+    )
+
+    if metrics:
+
+        metrics_df = pd.DataFrame(
+            [metrics]
+        )
+
+        st.dataframe(
+            metrics_df,
+            width="stretch"
+        )
+
+    # --------------------------------------------------------
+    # Confusion Matrix
+    # --------------------------------------------------------
+
+    st.subheader("Confusion Matrix")
+
+    cm = res.get(
+        "confusion_matrix"
+    )
+
+    if cm is not None:
+
+        class_names = res.get(
+            "class_names",
+            ["Part 1", "Part 2"]
+        )
+
         fig, ax = plt.subplots()
-        sns.heatmap(cm, annot=True, fmt="d", cmap="Reds", xticklabels=class_names, yticklabels=class_names, ax=ax)
+
+        sns.heatmap(
+            cm,
+            annot=True,
+            fmt="d",
+            cmap="YlOrRd",
+            xticklabels=class_names,
+            yticklabels=class_names,
+            ax=ax
+        )
+
         ax.set_xlabel("Predicted")
         ax.set_ylabel("Actual")
-        st.pyplot(fig)
 
-        # Classification report
-        st.subheader("Classification Report")
-        cls_report = res['classification_report']
-        cls_df = pd.DataFrame(cls_report).transpose()
-        st.dataframe(cls_df)
+        st.pyplot(
+            fig,
+            clear_figure=True
+        )
 
-# ----------------------------
+    # --------------------------------------------------------
+    # Classification Report
+    # --------------------------------------------------------
+
+    st.subheader("Classification Report")
+
+    cls_report = res.get(
+        "classification_report"
+    )
+
+    if cls_report is not None:
+
+        cls_df = pd.DataFrame(
+            cls_report
+        ).transpose()
+
+        st.dataframe(
+            cls_df,
+            width="stretch"
+        )
+
+
+# ============================================================
 # ABOUT
-# ----------------------------
-elif page == "About":
-    st.title("About this App")
-    st.markdown("""
-    **LA Crime Explorer** — a Streamlit app to explore Los Angeles Police Department crime data, visualize hotspots, and run a classifier for Part 1 vs Part 2 crimes.
-    
-    * Built from my notebook’s preprocessing pipeline and saved artifacts in `Files/`.
-    * Input page runs the exact same transforms (label encoders, scalers) before using saved models.
-    * Visualizations: crime map, heatmap (day×hour), monthly trends, top crime types.
-    """)
-    st.markdown("**How to run**")
-    st.code("""
-    pip install -r requirements.txt
-    streamlit run app.py
-    """)
-    st.markdown("**Requirements**: streamlit, pandas, numpy, matplotlib, seaborn, plotly, scikit-learn, xgboost, lightgbm, catboost, pickle, pathlib")
+# ============================================================
 
-# End of app
+elif page == "About":
+
+    st.title("About this App")
+
+    st.markdown(
+        """
+        ## 🦇 LA Crime Explorer
+
+        A Streamlit application built around the
+        Los Angeles Police Department crime dataset.
+
+        ### What can you do?
+
+        - Explore crime patterns and trends.
+        - Analyze crime locations and time patterns.
+        - Predict the LAPD crime category: **Part 1 or Part 2**.
+        - Compare multiple machine learning models.
+
+        ### Machine Learning Models
+
+        - XGBoost
+        - Random Forest
+        - Logistic Regression
+
+        ### Prediction Target
+
+        The model predicts the `Part 1-2` target from the
+        original dataset.
+
+        **Part 1** refers to crimes classified under the
+        Part 1 category.
+
+        **Part 2** refers to other offenses classified under
+        the Part 2 category.
+
+        These categories are **not a direct
+        Violent vs Non-Violent classification**.
+
+        ### Prediction Pipeline
+
+        The prediction page uses the same saved preprocessing
+        artifacts used during model training:
+
+        - Label Encoders
+        - Standard Scalers
+        - Robust Scaler
+        - Yeo-Johnson transformation
+
+        This keeps deployment preprocessing consistent
+        with the training pipeline.
+
+        ### Dataset
+
+        The application uses a deployment sample of the
+        original LAPD crime dataset to keep the application
+        lightweight.
+
+        """
+    )
+
+    st.subheader("How to Run")
+
+    st.code(
+        """
+pip install -r requirements.txt
+streamlit run app.py
+"""
+    )
+
+    st.write(
+        "**Main Requirements:** "
+        "Streamlit • Pandas • NumPy • Matplotlib • "
+        "Seaborn • Plotly • Scikit-learn • XGBoost"
+    )
