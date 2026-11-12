@@ -1,0 +1,101 @@
+# ============================================================
+# Python
+# ============================================================
+
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# ============================================================
+# Jupyter / Development
+# ============================================================
+
+.ipynb_checkpoints/
+*.ipynb
+
+# ============================================================
+# Git
+# ============================================================
+
+.git/
+.gitignore
+
+# ============================================================
+# Large / Unnecessary Project Files
+# ============================================================
+
+catboost_info/
+
+# Original full dataset
+Crime_Data_from_*.csv
+Crime_Data_from_*.xlsx
+
+# MATLAB / alternative dataset copies
+*.mat
+
+# Excel copies
+Sample.xlsx
+
+# Videos
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+
+# Screenshots / images
+Screenshot*.png
+Screenshot*.jpg
+Screenshot*.jpeg
+Screenshot*.webp
+
+# LinkedIn video / other media
+Linkedin Video*
+
+# ============================================================
+# Training / Experiment Files
+# ============================================================
+
+# Don't include test datasets if the app doesn't use them
+Files/X_test.pkl
+Files/y_test.pkl
+
+# Training-only folders
+Files/removing certain columns/
+
+# ============================================================
+# OS / IDE
+# ============================================================
+
+.DS_Store
+Thumbs.db
+
+.vscode/
+.idea/
+
+# ============================================================
+# Temporary / Logs
+# ============================================================
+
+*.log
+*.tmp
+*.temp
+
+# ============================================================
+# Files
+# ============================================================
+Files/AdaBoost.pkl
+Files/Bagging.pkl
+Files/CatBoost.pkl
+Files/DecisionTreeClassifier.pkl
+Files/ExtraTreesClassifier.pkl
+Files/GaussianNB.pkl
+Files/KNeighborsClassifier.pkl
+Files/LightGBM.pkl
